@@ -1,54 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <title>Datos de Red y Ubicación</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IP + GPS</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    background: #f2f2f2;
+}
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.btn {
+    margin-top: 20px;
+    padding: 12px 20px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+}
+</style>
 </head>
 <body>
-  <h2>Obteniendo datos...</h2>
 
-  <p id="ipPublica"></p>
-  <p id="gps"></p>
-  <p id="mapa"></p>
+<div class="card">
+    <h2>Información del dispositivo</h2>
 
-  <script>
-    async function obtenerIPPublica() {
-      try {
-        let respuesta = await fetch("https://api.ipify.org?format=json");
-        let datos = await respuesta.json();
-        document.getElementById("ipPublica").innerHTML = "IP Pública: " + datos.ip;
-      } catch (e) {
-        document.getElementById("ipPublica").innerHTML = "Error obteniendo IP pública";
-      }
+    <p id="ip">IP Pública: Cargando...</p>
+    <p id="gps">GPS: Esperando permiso...</p>
+
+    <button class="btn" onclick="solicitarGPS()">Reintentar obtener GPS</button>
+</div>
+
+<script>
+// ===== IP PÚBLICA =====
+fetch("https://api.ipify.org?format=json")
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("ip").innerText = "IP Pública: " + data.ip;
+    })
+    .catch(err => {
+        document.getElementById("ip").innerText = "Error IP Pública: " + err;
+    });
+
+// ===== FUNCIÓN PARA SOLICITAR GPS =====
+function solicitarGPS() {
+    if (!navigator.geolocation) {
+        document.getElementById("gps").innerText = "GPS no soportado en este dispositivo.";
+        return;
     }
 
-    function obtenerGPS() {
-      if (!navigator.geolocation) {
-        document.getElementById("gps").innerHTML = "GPS no soportado";
-        return;
-      }
+    document.getElementById("gps").innerText = "Obteniendo coordenadas...";
 
-      navigator.geolocation.getCurrentPosition(
+    navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-
-          document.getElementById("gps").innerHTML =
-            "Latitud: " + lat + "<br>Longitud: " + lon;
-
-          document.getElementById("mapa").innerHTML =
-            `<a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">
-              Ver ubicación en Google Maps
-            </a>`;
+            document.getElementById("gps").innerText =
+                `GPS: Lat ${pos.coords.latitude}, Lon ${pos.coords.longitude}`;
         },
         (err) => {
-          document.getElementById("gps").innerHTML =
-            "Error GPS: " + err.message;
-        }
-      );
-    }
+            if (err.code === 1) {
+                alert("⛔ Necesitas habilitar la ubicación.\n\n" +
+                    "Por favor ve a Ajustes → Ubicación → Activar\n" +
+                    "o permite el acceso cuando el navegador lo pida.");
+                document.getElementById("gps").innerText = "Permiso denegado.";
+            } else {
+                document.getElementById("gps").innerText = "Error GPS: " + err.message;
+            }
+        },
+        { enableHighAccuracy: true }
+    );
+}
 
-    obtenerIPPublica();
-    obtenerGPS();
-  </script>
+// Ejecutar automáticamente al abrir la página
+solicitarGPS();
+</script>
+
 </body>
 </html>
