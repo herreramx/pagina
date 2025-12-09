@@ -26,15 +26,25 @@ body {
     border-radius: 8px;
     font-size: 16px;
 }
+a.map-link {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 16px;
+    color: #007bff;
+    text-decoration: underline;
+}
 </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Información del dispositivo p1</h2>
+    <h2>Información del dispositivo p2 link maps</h2>
 
     <p id="ip">IP Pública: Cargando...</p>
     <p id="gps">GPS: Esperando permiso...</p>
+
+    <!-- Aquí aparecerá el link del mapa -->
+    <p id="map"></p>
 
     <button class="btn" onclick="solicitarGPS()">Reintentar obtener GPS</button>
 </div>
@@ -50,25 +60,36 @@ fetch("https://api.ipify.org?format=json")
         document.getElementById("ip").innerText = "Error IP Pública: " + err;
     });
 
-// ===== FUNCIÓN PARA SOLICITAR GPS =====
+// ===== FUNCIÓN GPS =====
 function solicitarGPS() {
+    document.getElementById("gps").innerText = "Obteniendo coordenadas...";
+    document.getElementById("map").innerHTML = "";
+
     if (!navigator.geolocation) {
         document.getElementById("gps").innerText = "GPS no soportado en este dispositivo.";
         return;
     }
 
-    document.getElementById("gps").innerText = "Obteniendo coordenadas...";
-
     navigator.geolocation.getCurrentPosition(
         (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
             document.getElementById("gps").innerText =
-                `GPS: Lat ${pos.coords.latitude}, Lon ${pos.coords.longitude}`;
+                `GPS: Lat ${lat}, Lon ${lon}`;
+
+            // Crear URL de Google Maps
+            const url = `https://www.google.com/maps?q=${lat},${lon}`;
+
+            // Mostrar enlace clicable
+            document.getElementById("map").innerHTML =
+                `<a class="map-link" href="${url}" target="_blank">📍 Ver en Google Maps</a>`;
         },
         (err) => {
             if (err.code === 1) {
-                alert("⛔ Necesitas habilitar la ubicación.\n\n" +
-                    "Por favor ve a Ajustes → Ubicación → Activar\n" +
-                    "o permite el acceso cuando el navegador lo pida.");
+                alert("⛔ Necesitas permitir acceso a la ubicación.\n\n" +
+                      "Ve a Ajustes → Ubicación → Activar,\n" +
+                      "y permite acceso cuando el navegador lo pida.");
                 document.getElementById("gps").innerText = "Permiso denegado.";
             } else {
                 document.getElementById("gps").innerText = "Error GPS: " + err.message;
@@ -78,7 +99,7 @@ function solicitarGPS() {
     );
 }
 
-// Ejecutar automáticamente al abrir la página
+// Ejecuta GPS al abrir
 solicitarGPS();
 </script>
 
