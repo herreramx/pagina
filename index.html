@@ -2,123 +2,104 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>IP + Geolocalización</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Datos del dispositivo</title>
 
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
-            background: #f7f7f7;
         }
-        .box {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+        .item {
+            margin-bottom: 12px;
         }
-        .map-link {
-            display: inline-block;
-            padding: 8px 12px;
-            background: #1a73e8;
-            color: white;
-            border-radius: 6px;
-            text-decoration: none;
-            margin-top: 10px;
+        #mapLink {
+            font-size: 18px;
+            font-weight: bold;
+            color: blue;
         }
     </style>
 </head>
 <body>
 
-<h2>Información del Dispositivo p3 link mpas +exacta</h2>
+    <h2>Obteniendo datos...</h2>
 
-<div class="box">
-    <div><b>IP Pública:</b> <span id="publicIP">Obteniendo...</span></div>
-</div>
-
-<div class="box">
-    <div><b>IP Local (LAN):</b> <span id="localIP">Obteniendo...</span></div>
-</div>
-
-<div class="box">
-    <div id="gps"><b>GPS:</b> Obteniendo...</div>
-    <div id="map"></div>
-</div>
-
-<br>
+    <div class="item"><b>IP Pública:</b> <span id="publicIP"></span></div>
+    <div class="item"><b>Dispositivo:</b> <span id="device"></span></div>
+    <div class="item"><b>Coordenadas:</b> <span id="coords"></span></div>
+    <div class="item"><a id="mapLink" href="#" target="_blank"></a></div>
 
 <script>
-/* ==========================================================
-   1. OBTENER IP PÚBLICA
-   ========================================================== */
-async function obtenerIPPública() {
-    try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        document.getElementById("publicIP").innerText = data.ip;
-    } catch (e) {
-        document.getElementById("publicIP").innerText = "Error";
-    }
-}
-obtenerIPPública();
+/* ==========================
+   Obtener Modelo del Dispositivo
+   ========================== */
+function getDeviceModel() {
+    const ua = navigator.userAgent;
 
-/* ==========================================================
-   2. OBTENER IP LOCAL (LAN) USANDO WebRTC
-   ========================================================== */
-function obtenerIPLocal() {
-    let pc = new RTCPeerConnection({iceServers: []});
-    pc.createDataChannel("");
-    pc.createOffer()
-        .then(o => pc.setLocalDescription(o))
-        .catch(err => console.error(err));
-
-    pc.onicecandidate = (event) => {
-        if (!event || !event.candidate) return;
-
-        let ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
-        let ipMatch = ipRegex.exec(event.candidate.candidate);
-
-        if (ipMatch) {
-            document.getElementById("localIP").innerText = ipMatch[1];
-            pc.close();
-        }
-    };
-}
-obtenerIPLocal();
-
-/* ==========================================================
-   3. OBTENER COORDENADAS GPS (ALTA PRECISIÓN)
-   ========================================================== */
-function obtenerGPS() {
-    if (!navigator.geolocation) {
-        document.getElementById("gps").innerText = "GPS no soportado por este dispositivo.";
-        return;
+    // iPhone detección
+    if (/iPhone/.test(ua)) {
+        if (window.screen.height === 812 && window.devicePixelRatio === 3) return "iPhone X / XS";
+        if (window.screen.height === 844) return "iPhone 12 / 13";
+        if (window.screen.height === 926) return "iPhone 12 Pro Max / 13 Pro Max";
+        return "iPhone (modelo no exacto)";
     }
 
+    // Android detección
+    if (/Android/.test(ua)) {
+        const model = ua.match(/Android.*?;\s*(.*?)\s*Build/);
+        return model ? model[1] : "Android (modelo no identificado)";
+    }
+
+    // Otros dispositivos
+    return ua;
+}
+
+document.getElementById("device").textContent = getDeviceModel();
+
+
+/* ==========================
+   Obtener IP Pública
+   ========================== */
+fetch("https://api.ipify.org?format=json")
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("publicIP").textContent = data.ip;
+    })
+    .catch(err => {
+        document.getElementById("publicIP").textContent = "Error obteniendo IP";
+    });
+
+
+/* ==========================
+   Obtener Coordenadas GPS
+   ========================== */
+if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
         (pos) => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-            const acc = pos.coords.accuracy; // precisión en metros
+            const lat = pos.coords.latitude.toFixed(6);
+            const lon = pos.coords.longitude.toFixed(6);
 
-            document.getElementById("gps").innerHTML =
-                `<b>GPS:</b> Lat ${lat}, Lon ${lon}<br>Precisión: ${acc} metros`;
+            document.getElementById("coords").textContent = `${lat}, ${lon}`;
 
-            const url = `https://www.google.com/maps?q=${lat},${lon}`;
-            document.getElementById("map").innerHTML =
-                `<a class="map-link" href="${url}" target="_blank">📍 Ver en Google Maps</a>`;
+            // Crear enlace directo para Google Maps
+            const mapUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+            const mapLink = document.getElementById("mapLink");
+            mapLink.href = mapUrl;
+            mapLink.textContent = "Ver ubicación en Google Maps";
         },
         (err) => {
-            document.getElementById("gps").innerText = "Error GPS: " + err.message;
+            document.getElementById("coords").textContent = "Error GPS: " + err.message;
         },
         {
             enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 20000
+            timeout: 8000,
+            maximumAge: 0
         }
     );
+} else {
+    document.getElementById("coords").textContent = "Geolocalización no soportada";
 }
-obtenerGPS();
+
 </script>
 
 </body>
