@@ -1,72 +1,97 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IP + GPS</title>
+    <meta charset="UTF-8" />
+    <title>IP + Geolocalización</title>
 
-<style>
-body {
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    background: #f2f2f2;
-}
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-.btn {
-    margin-top: 20px;
-    padding: 12px 20px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-}
-a.map-link {
-    display: inline-block;
-    margin-top: 10px;
-    font-size: 16px;
-    color: #007bff;
-    text-decoration: underline;
-}
-</style>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f7f7f7;
+        }
+        .box {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+        }
+        .map-link {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #1a73e8;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Información del dispositivo p2 link maps</h2>
+<h2>Información del Dispositivo p3 link mpas +exacta</h2>
 
-    <p id="ip">IP Pública: Cargando...</p>
-    <p id="gps">GPS: Esperando permiso...</p>
-
-    <!-- Aquí aparecerá el link del mapa -->
-    <p id="map"></p>
-
-    <button class="btn" onclick="solicitarGPS()">Reintentar obtener GPS</button>
+<div class="box">
+    <div><b>IP Pública:</b> <span id="publicIP">Obteniendo...</span></div>
 </div>
 
+<div class="box">
+    <div><b>IP Local (LAN):</b> <span id="localIP">Obteniendo...</span></div>
+</div>
+
+<div class="box">
+    <div id="gps"><b>GPS:</b> Obteniendo...</div>
+    <div id="map"></div>
+</div>
+
+<br>
+
 <script>
-// ===== IP PÚBLICA =====
-fetch("https://api.ipify.org?format=json")
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("ip").innerText = "IP Pública: " + data.ip;
-    })
-    .catch(err => {
-        document.getElementById("ip").innerText = "Error IP Pública: " + err;
-    });
+/* ==========================================================
+   1. OBTENER IP PÚBLICA
+   ========================================================== */
+async function obtenerIPPública() {
+    try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        document.getElementById("publicIP").innerText = data.ip;
+    } catch (e) {
+        document.getElementById("publicIP").innerText = "Error";
+    }
+}
+obtenerIPPública();
 
-// ===== FUNCIÓN GPS =====
-function solicitarGPS() {
-    document.getElementById("gps").innerText = "Obteniendo coordenadas...";
-    document.getElementById("map").innerHTML = "";
+/* ==========================================================
+   2. OBTENER IP LOCAL (LAN) USANDO WebRTC
+   ========================================================== */
+function obtenerIPLocal() {
+    let pc = new RTCPeerConnection({iceServers: []});
+    pc.createDataChannel("");
+    pc.createOffer()
+        .then(o => pc.setLocalDescription(o))
+        .catch(err => console.error(err));
 
+    pc.onicecandidate = (event) => {
+        if (!event || !event.candidate) return;
+
+        let ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+        let ipMatch = ipRegex.exec(event.candidate.candidate);
+
+        if (ipMatch) {
+            document.getElementById("localIP").innerText = ipMatch[1];
+            pc.close();
+        }
+    };
+}
+obtenerIPLocal();
+
+/* ==========================================================
+   3. OBTENER COORDENADAS GPS (ALTA PRECISIÓN)
+   ========================================================== */
+function obtenerGPS() {
     if (!navigator.geolocation) {
-        document.getElementById("gps").innerText = "GPS no soportado en este dispositivo.";
+        document.getElementById("gps").innerText = "GPS no soportado por este dispositivo.";
         return;
     }
 
@@ -74,33 +99,26 @@ function solicitarGPS() {
         (pos) => {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
+            const acc = pos.coords.accuracy; // precisión en metros
 
-            document.getElementById("gps").innerText =
-                `GPS: Lat ${lat}, Lon ${lon}`;
+            document.getElementById("gps").innerHTML =
+                `<b>GPS:</b> Lat ${lat}, Lon ${lon}<br>Precisión: ${acc} metros`;
 
-            // Crear URL de Google Maps
             const url = `https://www.google.com/maps?q=${lat},${lon}`;
-
-            // Mostrar enlace clicable
             document.getElementById("map").innerHTML =
                 `<a class="map-link" href="${url}" target="_blank">📍 Ver en Google Maps</a>`;
         },
         (err) => {
-            if (err.code === 1) {
-                alert("⛔ Necesitas permitir acceso a la ubicación.\n\n" +
-                      "Ve a Ajustes → Ubicación → Activar,\n" +
-                      "y permite acceso cuando el navegador lo pida.");
-                document.getElementById("gps").innerText = "Permiso denegado.";
-            } else {
-                document.getElementById("gps").innerText = "Error GPS: " + err.message;
-            }
+            document.getElementById("gps").innerText = "Error GPS: " + err.message;
         },
-        { enableHighAccuracy: true }
+        {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 20000
+        }
     );
 }
-
-// Ejecuta GPS al abrir
-solicitarGPS();
+obtenerGPS();
 </script>
 
 </body>
