@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Geo + IP</title>
+</head>
+<body>
+<h2>Obteniendo datos...</h2>
+<pre id="output"></pre>
+
+<script>
+// Mostrar datos
+function log(msg) {
+    document.getElementById("output").textContent += msg + "\n";
+}
+
+// Obtener IP Pública
+fetch("https://api.ipify.org?format=json")
+    .then(r => r.json())
+    .then(data => log("IP Pública: " + data.ip))
+    .catch(() => log("No se pudo obtener IP Pública"));
+
+// GPS Real
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            log("Latitud GPS: " + lat);
+            log("Longitud GPS: " + lon);
+            log("Google Maps: https://www.google.com/maps?q=" + lat + "," + lon);
+        },
+        err => log("Error GPS: " + err.message),
+        {
+            enableHighAccuracy: true,
+            timeout: 10000
+        }
+    );
+} else {
+    log("El dispositivo no soporta GPS.");
+}
+</script>
+
+</body>
+</html>
